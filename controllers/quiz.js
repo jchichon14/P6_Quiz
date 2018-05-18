@@ -41,7 +41,7 @@ exports.show = (req, res, next) => {
 exports.new = (req, res, next) => {
 
     const quiz = {
-        question: "", 
+        question: "",
         answer: ""
     };
 
@@ -131,6 +131,7 @@ exports.play = (req, res, next) => {
     const {quiz, query} = req;
 
     const answer = query.answer || '';
+    req.session.score=0;
 
     res.render('quizzes/play', {
         quiz,
@@ -152,4 +153,72 @@ exports.check = (req, res, next) => {
         result,
         answer
     });
+};
+
+
+//GET /quizzes/randomplay
+exports.randomplay = (req, res, next) => {
+
+    let score= req.session.score || 0;
+    let questions=req.session.randomPlay || [];
+
+
+    if(score===0){
+      models.quiz.findAll()
+      .each(quiz=>{
+        questions.push(quiz.id)
+        //req.session.randomplay.push(quiz.id);
+      })
+      .then(()=>{
+        let randomNumber = Math.round(Math.random()*(questions.length-1));
+        let id= questions[randomNumber];
+        questions.splice(randomNumber,1);
+        models.quiz.findById(id)
+        .then(quiz=>{
+          req.session.score=score+1;
+          req.session.randomPlay=questions;
+
+          res.render('quizzes/random_play',{score,quiz});
+        })
+      });
+    }else{
+
+      let score= req.session.score || 0;
+      let questions=req.session.randomPlay || [];
+
+      if(questions.length === 0){
+        req.session.score=0;
+        res.render('quizzes/random_nomore',{score});
+      }
+      models.quiz.findAll()
+    .then(()=>{
+      let randomNumber = Math.round(Math.random()*(questions.length-1));
+      let id= questions[randomNumber];
+      questions.splice(randomNumber,1);
+      models.quiz.findById(id)
+      .then(quiz=>{
+        req.session.score=score+1;
+        req.session.randomPlay=questions;
+        res.render('quizzes/random_play',{score,quiz});
+      })
+    })
+  }
+};
+// GET /quizzes/randomplay/:quizId(\\d+)
+exports.randomcheck = (req, res, next) => {
+  const {quiz, query} = req;
+
+  const answer = query.answer || "";
+  const result = answer.toLowerCase().trim() === quiz.answer.toLowerCase().trim();
+  let score = req.session.score;
+  if(!result){
+    req.session.score=0;
+    
+  }
+
+  res.render('quizzes/random_result', {
+      score,
+      result,
+      answer
+  });
 };
